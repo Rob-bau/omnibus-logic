@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Omnibus price logic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a working spec tool for a pricing/dev team: clear, exact, no decoration
+   IDEA: the Omnibus case sheet from the PDF, made live: inputs in, matched case row lit up
+   PICTURE: the live product price card (PDP + PLP), drawn large beside the inputs
+   COLOUR and TYPE: white ground, ink, BAUHAUS campaign red, outgoing blue, case-yellow highlight; Libre Franklin
+   LAYOUT: title, inputs | live result, then the reasoning, then the full case table */
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#141516);--ink:light-dark(#17181a,#ececec);--mut:light-dark(#5d6168,#a3a7ad);
+--line:light-dark(#dcdde0,#33363a);--soft:light-dark(#f4f4f5,#1d1f21);
+--red:light-dark(#d7141a,#ff4b4f);--blue:light-dark(#1d5fc4,#5d98ff);--hi:light-dark(#fff0b3,#4a3f12);
+--warn:light-dark(#8a4b00,#ffb454);--warnbg:light-dark(#fff4e0,#3a2a10);--ok:light-dark(#176b3a,#5fd08e)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Libre Franklin",system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(24px,3.5vw,52px) max(5vw,16px);max-width:1240px;margin:0 auto}
+h1{font-size:clamp(30px,4vw,44px);line-height:1.05;font-weight:800;margin:0 0 8px;text-wrap:balance}
+h2{font-size:22px;margin:0 0 12px;font-weight:800}
+.lede{color:var(--mut);margin:0;max-width:68ch}
+.grid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:clamp(20px,3vw,40px);align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+form{display:grid;gap:14px;background:var(--soft);padding:20px;border-radius:10px}
+label.f{display:grid;gap:4px;font-weight:600;font-size:14px}
+label.f small{font-weight:400;color:var(--mut)}
+input[type=number],input[type=date]{font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-height:44px;width:100%}
+input:focus-visible,button:focus-visible,select:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.tg{display:flex;gap:10px;align-items:center;min-height:36px;font-size:15px;cursor:pointer}
+.tg input{width:22px;height:22px;accent-color:var(--ink);flex:none}
+.tg span small{display:block;color:var(--mut);font-size:13px}
+.purpose{margin:0;font-size:14px;background:var(--bg);border-left:4px solid var(--ink);padding:10px 12px;border-radius:0 6px 6px 0}
+.rule{font-weight:400;font-size:13px;padding-left:22px;position:relative}
+.rule::before{position:absolute;left:0;top:0;font-weight:800}
+.rule.ok{color:var(--ok)}.rule.ok::before{content:"✓"}
+.rule.bad{color:var(--red)}.rule.bad::before{content:"✕"}
+input.bad{border-color:var(--red);border-width:2px}
+.mismatch:empty{display:none}
+.go{display:block;margin:8px 0 4px;background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600;width:100%}
+.or{font-size:13px}
+.mismatch{background:var(--warnbg);color:var(--warn);border-radius:8px;padding:10px 12px;font-size:14px}
+.locked{border-top:1px solid var(--line);padding-top:12px;font-size:14px}
+.lk-h{font-weight:600;margin-bottom:6px}
+#lk div{display:flex;justify-content:space-between;gap:12px;padding:3px 0;color:var(--mut)}
+#lk b{color:var(--ink);font-weight:600;text-align:right}
+select{font:inherit;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-height:44px;width:100%}
+.res{display:grid;gap:18px}
+.verdict{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:baseline}
+.case{font-size:clamp(40px,6vw,64px);font-weight:800;line-height:1}
+.mt{font-family:ui-monospace,Menlo,monospace;font-size:15px;padding:4px 8px;border-radius:4px;background:var(--soft);border:1px solid var(--line)}
+.why{margin:0;color:var(--ink);max-width:70ch}
+.cards{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+@media(max-width:520px){.cards{grid-template-columns:minmax(0,1fr)}}
+.card{border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--bg)}
+.card h3{margin:0 0 10px;font-size:13px;color:var(--mut);font-weight:600}
+.pdp{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px}
+.img{background:var(--soft);border:1px solid var(--line);border-radius:6px;aspect-ratio:1;display:grid;place-items:center;color:var(--mut);font-size:13px}
+.badge{display:inline-block;color:#fff;font-weight:800;font-size:14px;padding:3px 9px;border-radius:3px;margin-right:8px}
+.b-Campaign{background:var(--red)}.b-Outgoing{background:var(--blue)}.b-New{background:#ffe600;color:#111}
+.top{font-size:13px;color:var(--mut);margin-bottom:6px;min-height:22px}
+.price{font-size:30px;font-weight:800;line-height:1.1;white-space:nowrap}
+.price.red{color:var(--red)}
+.save.blk{border-color:var(--ink);color:var(--ink)}
+.box{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:14px;display:grid;gap:2px}
+.box .r{color:var(--red)}
+.seg-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.seg-l{font-size:12px;letter-spacing:.06em;color:var(--mut);font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;background:var(--soft)}
+.seg button{font:inherit;font-size:15px;border:0;background:none;color:var(--ink);padding:0 16px;min-height:40px;border-radius:7px;cursor:pointer}
+.seg button[aria-selected=true]{background:var(--ink);color:var(--bg);font-weight:600}
+.vnote{margin:0;font-size:14px;color:var(--mut)}
+.vnote:empty{display:none}
+.meta{font-size:14px;margin-top:6px;display:grid;gap:2px}
+.meta s{color:var(--mut)}
+.save{display:inline-block;margin-top:8px;border:2px solid var(--red);color:var(--red);font-weight:600;font-size:14px;padding:3px 10px;white-space:nowrap}
+.save.neg{border-color:var(--warn);color:var(--warn);background:var(--warnbg)}
+.plp .img{aspect-ratio:4/3;margin-bottom:8px}.plp .price{font-size:22px}
+.flags{display:grid;gap:8px}
+.flag{background:var(--warnbg);color:var(--warn);border-radius:8px;padding:10px 14px;font-size:14px}
+.flag b{color:inherit}
+.calc{font-size:14px;color:var(--mut)}
+.calc code{color:var(--ink)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--mut);font-weight:600;background:var(--soft)}
+td.n{white-space:nowrap;font-weight:800}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--soft)}
+tbody tr.on{background:var(--hi)}
+td code{font-size:13px}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button,.btn{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:0 12px;min-height:40px;cursor:pointer}
+.presets button:hover,.btn:hover{border-color:var(--ink)}
+.note{font-size:13px;color:var(--mut);margin-top:10px}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mut)}.stack td:empty{display:none}}
+</style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<div class="band">
+  <h1>Omnibus price logic: try any price</h1>
+  <p class="lede">Enter a price, an ordinary price and the lowest price in the last 30 days. The page finds the matching case from the Omnibus spec (7655) and shows how the label renders on PDP and PLP.</p>
+</div>
+
+<div class="band grid" style="padding-top:0">
+  <form id="f" autocomplete="off">
+    <label class="f">Case<small>Fills in all settings below for that case</small>
+      <select id="pick"></select>
+    </label>
+    <p class="purpose" id="purpose"></p>
+    <label class="f">Price (kr)<input type="number" id="price" step="0.01" min="0"><span class="rule" id="r-price"></span></label>
+    <label class="f">Ordinary price (kr)<input type="number" id="ord" step="0.01" min="0"><span class="rule" id="r-ord"></span></label>
+    <label class="f">Lowest price in last 30 days (kr)<input type="number" id="low" step="0.01" min="0"><span class="rule" id="r-low"></span></label>
+    <div class="mismatch" id="mm"></div>
+    <div class="locked">
+      <div class="lk-h">Settings for this case (locked)</div>
+      <div id="lk"></div>
+    </div>
+  </form>
+
+  <div class="res" aria-live="polite">
+    <div class="verdict"><span class="case" id="vCase"></span><span class="mt" id="vMt"></span></div>
+    <p class="why" id="vWhy"></p>
+    <div class="seg-row"><span class="seg-l">Customer view</span>
+      <div class="seg" role="tablist" id="seg">
+        <button type="button" role="tab" data-v="reg">Regular</button>
+        <button type="button" role="tab" data-v="g19">B2C G1–9</button>
+        <button type="button" role="tab" data-v="b2b">B2B</button>
+      </div>
+    </div>
+    <p class="vnote" id="vNote"></p>
+    <div class="cards">
+      <div class="card"><h3 id="hPdp">B2C PDP</h3>
+        <div class="pdp"><div class="img">IMG</div><div id="pdp"></div></div>
+      </div>
+      <div class="card plp"><h3 id="hPlp">B2C PLP</h3><div class="img">IMG</div><div id="plp"></div></div>
+    </div>
+    <div class="calc" id="vCalc"></div>
+    <div class="flags" id="vFlags"></div>
+  </div>
+</div>
+
+<div class="band" style="padding-top:0">
+  <h2>All cases</h2>
+  <div class="presets" id="presets"></div>
+  <p class="note">Click a row or button to load an example for that case. The matched case is highlighted.</p>
+  <div class="scroll">
+  <table class="stack"><thead><tr><th>Case</th><th>What it's for</th><th>Ordinary price</th><th>Lowest price</th><th>Condition</th><th>Label</th><th>Shows</th><th>Merchandising type</th></tr></thead>
+  <tbody id="tb"></tbody></table>
+  </div>
+  <p class="note">Simplified version of the spec PDF, for discussion only. Price calculations, wording and design should always come from the relevant sources. Case 3.2 (See Price label = 0) is an internal test case for Vaimo and is left out here.</p>
+</div>
+
+<script>
+{
+const CASES=[
+ {n:'1',purpose:"The price drops in steps. Example: a drill normally costs 1234 kr, was on sale for 1100 kr two weeks ago, and is now 1000 kr. The law says the saving must be compared with the lowest price in the last 30 days (1100 kr), not the normal price. So 'You save 100 kr', not 234 kr. The normal price is shown as information only. How to spot it: the lowest price is between today's price and the ordinary price.",ordR:'gt',lowR:'between',ord:'> Price',low:'(Price + 1) to (Ordinary − 1)',cond:'Campaign',lab:'Campaign',shows:'Ordinary price, campaign date, You save (lowest − price), lowest price',mt:'successive_sale',ex:{price:1000,ord:1234,low:1100,camp:1}},
+ {n:'2',purpose:'The first reduction in a campaign: the product has been at its ordinary price for the last 30 days and is now on sale.',ordR:'gt',lowR:'eqOrd',ord:'> Price',low:'= Ordinary price',cond:'Campaign',lab:'Campaign',shows:'Campaign date, You save (lowest − price), lowest price',mt:'initial_sale',ex:{price:1000,ord:1234,low:1234,camp:1}},
+ {n:'3.1',purpose:"Not a real campaign. The lowest price in the last 30 days was the same as or lower than today's price, so by law (Omnibus) it can't be called a campaign: no Campaign label and no 'You save'. Only the price, the ordinary price (for info) and the lowest price are shown. Business always uses case 3.1 in this situation.",ordR:'gt',lowR:'lePrice',ord:'> Price',low:'≤ Price',cond:'Campaign (See Price label = 1)',lab:'',shows:'Ordinary price, lowest price',mt:'see_price',ex:{price:1000,ord:1234,low:950,camp:1,see:1}},
+ {n:'4',name:'No label: bad data',purpose:"No label (bad data). The product is on campaign, but the lowest price in the last 30 days is higher than the ordinary price. That shouldn't be possible: the ordinary price should never be below what the product actually sold for. Rather than show a wrong saving, only the price is shown. Test that no Campaign badge or 'You save' appears. These products should also be reported so the prices get fixed.",ordR:'gt',lowR:'gtOrd',ord:'> Price',low:'> Ordinary price',cond:'Campaign',lab:'',shows:'Price only',mt:'null',ex:{price:1000,ord:1234,low:1300,camp:1}},
+ {n:'5',name:'No label: no reduction',purpose:"No label (no reduction). The product is on campaign, but the ordinary price is missing or the same as / lower than the price, so the customer doesn't actually pay less than normal. Only the price is shown. Test that no Campaign badge or 'You save' appears, even though the product is in a campaign.",ordR:'leOrNull',lowR:'any',ord:'≤ Price',low:'Any',cond:'Campaign',lab:'',shows:'Price only',mt:'null',ex:{price:1000,ord:900,low:900,camp:1}},
+ {n:'6',name:'Normal product',purpose:"Normal product. Not on campaign, not outgoing and not new: the everyday case for most products. Only the price is shown, with no label, no 'You save' and no lowest price. The ordinary price and lowest price don't matter here.",ordR:'any',lowR:'any',ord:'Any',low:'Any',cond:'Not campaign',lab:'',shows:'Price only',mt:'null',ex:{price:1000,ord:1234,low:1100}},
+ {n:'7',purpose:"Same as case 1, but for an outgoing product (X7/X8/X9): the price drops in steps, and 'You save' only counts the latest step down from the lowest price in the last 30 days. Shown with the Outgoing label.",ordR:'gt',lowR:'between',ord:'> Price',low:'(Price + 1) to (Ordinary − 1)',cond:'Campaign + Outgoing',lab:'Outgoing',shows:'Ordinary price, You save (lowest − price), lowest price',mt:'outgoing_successive_sale',ex:{price:1000,ord:1234,low:1100,camp:1,out:1}},
+ {n:'8',purpose:'Outgoing product on its first reduction. Same as case 2, with the Outgoing label.',ordR:'gt',lowR:'eqOrd',ord:'> Price',low:'= Ordinary price',cond:'Campaign + Outgoing',lab:'Outgoing',shows:'You save (lowest − price), lowest price',mt:'outgoing_initial_sale',ex:{price:1000,ord:1234,low:1234,camp:1,out:1}},
+ {n:'9',purpose:'Outgoing product that is not cheaper than in the last 30 days. Same as case 3.1, with the Outgoing label.',ordR:'gt',lowR:'lePrice',ord:'> Price',low:'≤ Price',cond:'Campaign + Outgoing',lab:'Outgoing',shows:'Ordinary price, lowest price',mt:'outgoing_see_price',ex:{price:1000,ord:1234,low:950,camp:1,out:1}},
+ {n:'10',purpose:'Outgoing product whose campaign has been running a long time (stale). Shows ordinary and lowest price, no saving.',ordR:'gt',lowR:'any',ord:'> Price',low:'Any',cond:'Campaign + Outgoing + stale',lab:'Outgoing',shows:'Ordinary price, lowest price',mt:'outgoing_sale_stale',ex:{price:1000,ord:1234,low:1100,camp:1,out:1,stale:1}},
+ {n:'11',purpose:'Outgoing product that is not on campaign. Only the Outgoing label and the price.',ordR:'leOrNull',lowR:'any',ord:'Null or ≤ Price',low:'Any',cond:'Not campaign + Outgoing',lab:'Outgoing',shows:'Price only',mt:'outgoing',ex:{price:1000,ord:'',low:'',out:1}},
+ {n:'12',purpose:'New product (within the configured new-product period), not on campaign. Only the New label and the price.',ordR:'any',lowR:'any',ord:'Any',low:'Any',cond:'Not campaign + New product',lab:'New',shows:'Price only',mt:'new',ex:{price:1000,ord:'',low:'',neu:1}},
+ {n:'101',purpose:'Campaign product with no price history for the last 30 days (for example, newly added). The saving is measured from the ordinary price.',ordR:'gt',lowR:'empty',ord:'> Price',low:'− (no history)',cond:'Campaign',lab:'Campaign',shows:'Ordinary price, campaign date, You save (ordinary − price)',mt:'sale',ex:{price:1000,ord:1234,low:'',camp:1}},
+ {n:'102',purpose:'Outgoing campaign product with no price history. Same as case 101, with the Outgoing label.',ordR:'gt',lowR:'empty',ord:'> Price',low:'− (no history)',cond:'Campaign + Outgoing',lab:'Outgoing',shows:'Ordinary price, You save (ordinary − price)',mt:'outgoing_sale',ex:{price:1000,ord:1234,low:'',camp:1,out:1}}
+];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=v=>new Intl.NumberFormat('sv-SE',{maximumFractionDigits:2}).format(v)+' kr';
+const num=id=>{const v=$(id).value.trim();return v===''?null:Math.round(parseFloat(v)*100)/100};
+const c=x=>Math.round(x*100);
+const fields=['pick','price','ord','low'];
+const FLAGS=[['camp','Is campaign'],['out','Outgoing (X7/X8/X9)'],['stale','Campaign stale (case 10)'],['neu','New product']];
+let cfg={};let view='reg';const DISC=1;
+
+function evaluate(s){
+  const {price:p,ord:o,low:l}=s;
+  const hasOrd=o!==null&&c(o)>c(p);
+  const r={flags:[]};
+  if(p===null){return {n:'–',mt:'',why:'Enter a price to start.',lab:'',flags:[]}}
+  if(s.out){
+    if(s.camp){
+      if(!hasOrd) return {n:'?',gap:1,lab:'Outgoing',mt:'not in spec',why:'Outgoing campaign product where the ordinary price is missing or not above the price. The spec has no case for this.'};
+      if(s.stale) return {n:'10',lab:'Outgoing',mt:'outgoing_sale_stale',ord:1,low:1,why:'Outgoing campaign that is stale. Shows ordinary and lowest price, no "You save".'};
+      if(l===null) return {n:'102',lab:'Outgoing',mt:'outgoing_sale',ord:1,save:o-p,saveFrom:'ordinary',why:'Outgoing campaign with no price history, so the saving is measured from the ordinary price.'};
+      if(c(l)<=c(p)) return {n:'9',lab:'Outgoing',mt:'outgoing_see_price',ord:1,low:1,why:'It has been this cheap or cheaper in the last 30 days, so there is no real reduction and no "You save".'};
+      if(c(l)<c(o)) return {n:'7',lab:'Outgoing',mt:'outgoing_successive_sale',ord:1,low:1,save:l-p,saveFrom:'lowest',why:'Already reduced earlier (less), now reduced further. Only the extra step down counts.'};
+      if(c(l)===c(o)) return {n:'8',lab:'Outgoing',mt:'outgoing_initial_sale',low:1,save:l-p,saveFrom:'lowest',why:'First reduction from the ordinary price.'};
+      return {n:'?',gap:1,lab:'Outgoing',mt:'not in spec',why:'Outgoing campaign where the lowest price is above the ordinary price. The spec has no outgoing case for this (case 4 covers it for normal products).'};
+    }
+    if(!hasOrd) return {n:'11',lab:'Outgoing',mt:'outgoing',why:'Outgoing product, not on campaign, with no ordinary price above the price. Only the Outgoing label and price.'};
+    return {n:'?',gap:1,lab:'Outgoing',mt:'not in spec',why:'Outgoing product, not on campaign, but with an ordinary price above the price. The spec has no case for this.'};
+  }
+  if(s.camp){
+    if(!hasOrd) return {n:'5',lab:'',mt:'null',why:'No label: on campaign, but the ordinary price is not above the price, so there is no real reduction. Only the price is shown.'};
+    if(l===null) return {n:'101',lab:'Campaign',mt:'sale',ord:1,dates:1,save:o-p,saveFrom:'ordinary',why:'Campaign with no price history, so the saving is measured from the ordinary price.'};
+    if(c(l)<=c(p)){
+      if(s.see) return {n:'3.1',lab:'',mt:'see_price',ord:1,low:1,why:'It has been this cheap or cheaper in the last 30 days, so it is not a real reduction. Shown calmly, with no Campaign badge and no "You save".'};
+      const r={n:'3.2',lab:'Campaign',mt:'initial_sale',dates:1,low:1,flag32:1,why:'It has been this cheap or cheaper in the last 30 days, but the See Price label is off, so it still gets the Campaign badge.'};
+      if(s.m32==='spec'){r.save=l-p;r.saveFrom='lowest'}
+      return r;
+    }
+    if(c(l)<c(o)) return {n:'1',lab:'Campaign',mt:'successive_sale',ord:1,dates:1,low:1,save:l-p,saveFrom:'lowest',why:'The price drops in steps: already on sale in the last 30 days, now even cheaper. Only the latest step down counts as the saving.'};
+    if(c(l)===c(o)) return {n:'2',lab:'Campaign',mt:'initial_sale',dates:1,low:1,save:l-p,saveFrom:'lowest',why:'First reduction: the lowest price in 30 days equals the ordinary price.'};
+    return {n:'4',lab:'',mt:'null',why:'No label: the lowest price is higher than the ordinary price, which is bad data. Only the price is shown, and the product should be reported so the prices get fixed.'};
+  }
+  if(s.neu) return {n:'12',lab:'New',mt:'new',why:'Not on campaign and within the new-product threshold.'};
+  return {n:'6',lab:'',mt:'null',why:'Normal product: not on campaign, so only the price is shown.'};
+}
+
+function state(){return {price:num('price'),ord:num('ord'),low:num('low'),days:30,to:'',camp:!!cfg.camp,out:!!cfg.out,see:true,stale:!!cfg.stale,neu:!!cfg.neu,m32:'spec'}}
+function checkRules(s,r){
+  const k=byN($('pick').value);if(!k)return;
+  $('purpose').textContent=k.purpose;
+  const P=s.price,O=s.ord,L=s.low,hasP=P!==null&&P>0,hasO=O!==null;
+  const fp=hasP?fmt(P):'Price',fo=hasO?fmt(O):'Ordinary price';
+  const set=(id,ok,txt)=>{const e=$('r-'+id);e.textContent=txt;e.className='rule '+(ok?'ok':'bad');$(id).classList.toggle('bad',!ok)};
+  set('price',hasP,'Today\'s selling price. Any amount above 0 kr.');
+  const oR={
+    gt:[hasO&&hasP&&c(O)>c(P),`Must be higher than Price (more than ${fp}).`],
+    leOrNull:[!hasO||(hasP&&c(O)<=c(P)),`Leave empty, or the same as / lower than Price (${fp} or less).`],
+    any:[true,'Any value, or empty. It doesn\'t affect this case.']
+  }[k.ordR];
+  set('ord',oR[0],oR[1]);
+  const hasL=L!==null;
+  const lR={
+    between:[hasL&&hasP&&hasO&&c(L)>c(P)&&c(L)<c(O),hasP&&hasO?(c(O)-c(P)>1?`Must be between Price and Ordinary price: more than ${fp} and less than ${fo}.`:'Impossible: Ordinary price must be more than Price for a value to fit between them.'):'Must be higher than Price and lower than Ordinary price.'],
+    eqOrd:[hasL&&hasO&&c(L)===c(O),`Must be exactly the same as Ordinary price (${fo}).`],
+    lePrice:[hasL&&hasP&&c(L)<=c(P),`Must be the same as / lower than Price (${fp} or less).`],
+    gtOrd:[hasL&&hasO&&c(L)>c(O),`Must be higher than Ordinary price (more than ${fo}).`],
+    any:[true,'Any value, or empty. It doesn\'t affect this case.'],
+    empty:[!hasL,'Leave empty: no price history in the last 30 days.']
+  }[k.lowR];
+  set('low',lR[0],lR[1]);
+  const real=byN(r.n);
+  $('mm').innerHTML=(r.n!==k.n&&hasP)?(real?`These prices don't fit case ${esc(k.n)}. They belong to <b>case ${esc(r.n)}${real.name?' ('+esc(real.name)+')':''}</b>.<button type="button" class="btn go" data-go="${esc(r.n)}">Go to case ${esc(r.n)} with these prices</button><span class="or">or change the fields marked ✕.</span>`:`These prices don't match any case in the spec. Change the fields marked ✕.`):'';
+}
+function setCase(n,withPrices){
+  const k=byN(n);cfg=k.ex;$('pick').value=n;
+  if(withPrices){$('price').value=k.ex.price??'';$('ord').value=k.ex.ord??'';$('low').value=k.ex.low??''}
+  $('lk').innerHTML=FLAGS.map(([f,t])=>`<div><span>${t}</span><b>${cfg[f]?(f==='see'?'1':'Yes'):(f==='see'?'0':'No')}</b></div>`).join('')+'<div><span>Lowest price period</span><b>30 days</b></div><div><span>Customer discount (G1–9, B2B)</span><b>'+DISC+'% (spec example)</b></div>';
+  render();
+}
+function dmy(d){if(!d)return 'xx.xx.xxxx';const [y,m,dd]=d.split('-');return `${dd}.${m}.${y}`}
+
+function render(){
+  const s=state(),r=evaluate(s);
+  checkRules(s,r);
+  $('vCase').textContent=r.n==='–'?'–':(r.gap?'No case':'Case '+r.n);
+  $('vMt').textContent=r.mt||'';$('vMt').style.display=r.mt?'':'none';
+  $('vWhy').textContent=r.why;
+  const has=r.save!==undefined;
+  const neg=has&&c(r.save)<=0;
+  const pr=s.price===null?'–':fmt(s.price);
+  const d=DISC/100, cp=s.price===null?null:Math.round(s.price*(1-d)*100)/100, cpr=cp===null?'–':fmt(cp);
+  const ordStrike=r.n==='101'||r.n==='102';
+  const B2B_SALE=['1','2','3.1','3.2','7','8','9','10','101','102'];
+  let lab=r.lab,pdpPrice=pr,plpPrice=pr,saveAmt=has?r.save:undefined,lowL='',ordL='',box='',plpExtra='',dates=r.dates;
+  if(view==='b2b'){
+    const sale=B2B_SALE.includes(r.n)&&s.ord!==null;
+    if(sale)lab=lab||'Campaign';
+    else if(lab==='Campaign')lab='';
+    dates=sale&&lab==='Campaign';
+    pdpPrice=plpPrice=cpr;
+    saveAmt=sale?s.ord-s.price:undefined;
+    box=sale?`<span>Ordinary price: <s>${fmt(s.ord)}</s></span><span>Campaign price: <span class="${lab==='Campaign'?'r':''}">${pr}</span></span><span>Discount: ${DISC}%</span>`:`<span>Price: ${pr}</span><span>Discount: ${DISC}%</span>`;
+    plpExtra=sale?`<div class="meta"><s>${fmt(s.ord)}</s></div>`:'';
+  }else{
+    lowL=r.low&&s.low!==null?`<span>Lowest price in ${esc(s.days)} days: <s>${fmt(s.low)}</s></span>`:'';
+    ordL=r.ord&&s.ord!==null?(ordStrike?`<span><s>${fmt(s.ord)}</s></span>`:`<span>Ordinary price: ${fmt(s.ord)}</span>`):'';
+    if(view==='g19'){
+      pdpPrice=cpr;
+      box=`${lowL}${ordStrike?`<span>Ordinary price: <s>${fmt(s.ord)}</s></span>`:ordL}<span>${has?'Campaign price':'Price'}: <span class="${has&&lab==='Campaign'?'r':''}">${pr}</span></span><span>Discount: ${DISC}%</span>`;
+    }
+  }
+  const col=lab==='Campaign'?'red':'';
+  const badge=lab?`<span class="badge b-${lab}">${lab}</span>`:'';
+  const dt=dates?`Campaign to: ${esc(dmy(s.to))}`:'';
+  const hs=saveAmt!==undefined, sneg=hs&&c(saveAmt)<=0;
+  const save=hs?`<span class="save${sneg?' neg':lab==='Campaign'?'':' blk'}">You save: ${fmt(saveAmt)}</span>`:'';
+  const meta=`${lowL}${ordL}`;
+  if(view==='reg'){
+    $('pdp').innerHTML=`<div class="top">${badge}${dt}</div><div class="price ${col}">${pdpPrice}</div><div class="meta">${meta}</div>${save}`;
+    $('plp').innerHTML=`<div class="top">${badge}</div><div class="price ${col}">${plpPrice}</div>${save}<div class="meta">${meta}</div>`;
+  }else if(view==='g19'){
+    $('pdp').innerHTML=`<div class="top">${badge}${dt}</div><div class="price ${col}">${pdpPrice}</div>${save}<div class="box">${box}</div>`;
+    $('plp').innerHTML=`<div class="top">${badge}</div><div class="price ${col}">${plpPrice}</div>${save}<div class="meta">${meta}</div>`;
+  }else{
+    $('pdp').innerHTML=`<div class="top">${badge}${dt}</div><div class="price ${col}">${pdpPrice}</div>${save}<div class="box">${box}</div>`;
+    $('plp').innerHTML=`<div class="top">${badge}</div><div class="price ${col}">${plpPrice}</div>${save}${plpExtra}`;
+  }
+  const T={reg:['B2C PDP','B2C PLP'],g19:['B2C G1–9 PDP','B2C G1–9 PLP (same as Regular)'],b2b:['B2B PDP','B2B PLP']}[view];
+  $('hPdp').textContent=T[0];$('hPlp').textContent=T[1];
+  $('vNote').textContent={reg:'Regular B2C customers (also B2C G0, without discounts).',g19:`B2C customers with a personal discount (G1–9, example ${DISC}%). PDP shows their price after discount; the Omnibus rules and "You save" are the same as Regular. PLP is the same as Regular.`,b2b:`Logged-in business customers (example ${DISC}% discount). Omnibus doesn't apply to B2B, so campaigns show "You save" from the ordinary price (ordinary − campaign price) and the lowest price isn't shown.`}[view];
+  let calc='';
+  if(view==='b2b'){ if(hs) calc=`You save = ordinary price − campaign price = <code>${fmt(s.ord)} − ${fmt(s.price)} = ${fmt(saveAmt)}</code>. Customer price = ${fmt(s.price)} − ${DISC}% = <code>${cpr}</code>`; else if(r.n!=='–') calc=`No "You save" label. Customer price = ${pr} − ${DISC}% = <code>${cpr}</code>`;}
+  else{
+    if(has) calc=`You save = ${r.saveFrom==='lowest'?'lowest price':'ordinary price'} − price = <code>${fmt(r.saveFrom==='lowest'?s.low:s.ord)} − ${fmt(s.price)} = ${fmt(r.save)}</code>`;
+    else if(r.n!=='–') calc='No "You save" label in this case.';
+    if(view==='g19'&&s.price!==null) calc+=` Customer price on PDP = ${pr} − ${DISC}% = <code>${cpr}</code>`;
+  }
+  $('vCalc').innerHTML=calc;
+  const fl=[];
+  if(neg) fl.push('<b>Negative or zero saving.</b> Today\'s price is not lower than the 30-day lowest price, so "You save" would be misleading under Omnibus. It should not be shown.');
+  if(r.flag32) fl.push('<b>Current logic, pending confirmation.</b> In 3.2, "You save" is calculated as lowest − price, as in the PDF. Because lowest ≤ price in this case, the result is always zero or negative. Suggested change: hide "You save" in 3.2, like 3.1.');
+  if(r.n==='10') fl.push('<b>Check the stale rule.</b> "Now + 60 days &gt; campaign_date_from" is true for almost every campaign. It probably means the campaign started more than 60 days ago (campaign_date_from + 60 days &lt; now).');
+  if(r.gap) fl.push('<b>Gap in the spec.</b> No case matches this combination. Ask the spec owner what should be shown.');
+  if(s.camp&&s.out===false&&s.neu) fl.push('New product is only used when the product is not on campaign (case 12).');
+  $('vFlags').innerHTML=fl.map(x=>`<div class="flag">${x}</div>`).join('');
+  document.querySelectorAll('#tb tr').forEach(tr=>tr.classList.toggle('on',tr.dataset.n===r.n));
+  try{localStorage.setItem('omni7655b',JSON.stringify(fields.reduce((a,k)=>{a[k]=$(k).value;return a},{})))}catch(e){}
+}
+
+
+$('tb').innerHTML=CASES.map(k=>`<tr data-n="${k.n}"><td class="n">${k.n}</td><td>${k.name?'<b>'+k.name+'.</b> ':''}${k.purpose.replace(/^(No label \([^)]*\)|Normal product)\. /,'')}</td><td>${k.ord}</td><td>${k.low}</td><td>${k.cond}</td><td>${k.lab||'—'}</td><td>${k.shows}</td><td><code>${k.mt}</code></td></tr>`).join('');
+$('presets').innerHTML=CASES.map(k=>`<button type="button" data-n="${k.n}">Case ${k.n}${k.name==='Normal product'?' · Normal':''}</button>`).join('');
+const byN=n=>CASES.find(k=>k.n===n);
+$('pick').innerHTML=CASES.map(k=>`<option value="${k.n}">Case ${k.n} · ${k.name||k.mt}</option>`).join('');
+$('tb').addEventListener('click',e=>{const tr=e.target.closest('tr');if(tr)setCase(tr.dataset.n,true)});
+$('presets').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setCase(b.dataset.n,true)});
+$('pick').addEventListener('change',()=>setCase($('pick').value,true));
+['price','ord','low'].forEach(id=>$(id).addEventListener('input',render));
+$('f').addEventListener('submit',e=>e.preventDefault());
+function setView(v){view=v;document.querySelectorAll('#seg button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));try{localStorage.setItem('omniView',v)}catch(e){}render()}
+$('seg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
+try{const v=localStorage.getItem('omniView');if(['reg','g19','b2b'].includes(v))view=v}catch(e){}
+document.querySelectorAll('#seg button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===view));
+$('mm').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)setCase(b.dataset.go,false)});
+
+let saved=null;try{saved=JSON.parse(localStorage.getItem('omni7655b'))}catch(e){}
+if(saved&&byN(saved.pick)){setCase(saved.pick,false);['price','ord','low'].forEach(k=>$(k).value=saved[k]??'');render()}
+else{setCase('3.1',true);$('price').value=5000;$('ord').value=6000;$('low').value=4595;render()}
+}
+</script>
+</body>
+</html>
